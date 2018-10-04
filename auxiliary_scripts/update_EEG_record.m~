@@ -1,0 +1,62 @@
+
+
+function update_EEG_record( data, EEG_path )
+    
+    fprintf("Updating EEG records... ");
+    
+    trials = split_by_trials( data );
+
+    sorted_trials = cellfun(@(t) sort_data(t,"either"), trials, 'UniformOutput', false);
+
+    
+    trial_wait_data = cellfun(@(t) t{2}, sorted_trials, 'UniformOutput', false);
+            
+    trial_wait_dils = cellfun(@(t) get_avg_dilation(t), trial_wait_data);
+
+    [~,I] = sort(trial_wait_dils);
+    
+    sorted_trials = trial_wait_data(I);
+    
+    % Get rid of all the trials with too little wait-period data:
+    global TRIAL_WAIT_DATA_MINIMUM;
+    sorted_trials = sorted_trials(cellfun(@(c) size(c, 1) >= TRIAL_WAIT_DATA_MINIMUM, sorted_trials));
+    
+        
+    % Make an array representing the edge indices of our bins:
+    num_trials = size(sorted_trials, 1);
+    global NUM_TRIAL_BINS;
+    edges = 0:(1 / NUM_TRIAL_BINS):1;
+    edges = arrayfun(@(x) x * num_trials, edges);
+%     disp(edges)
+    
+    EEG_data = importdata( EEG_path );
+    
+    disp(EEG_data.data(1:20, :))
+    
+    for i = 1:num_trials
+       trial = sorted_trials{i};
+%         trial = trial{i};
+%         disp(trial)
+       trial_id = trial(1,11);
+       
+       category = categorize_trial( edges, i );
+       
+       EEG_data.data(trial_id{1} * 2, 2) = category;
+    end
+    
+    disp(EEG_data.data(1:20, :))
+    
+    fID = fopen(['EEG tagging files/NSF1c_sub' ],'w');
+    
+    
+    fprintf("Done!\n");
+    
+end
+
+function d = categorize_trial( edges, index )
+
+    bin_index = discretize(index, edges);
+
+    d = 100 + bin_index;
+    
+end
